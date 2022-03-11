@@ -16,7 +16,6 @@ namespace DiscordBotOnLinux
     {
         DiscordSocketClient client; //봇 클라이언트
         CommandService commands;    //명령어 수신 클라이언트
-
         /// <summary>
         /// 프로그램의 진입점
         /// </summary>
@@ -66,13 +65,13 @@ namespace DiscordBotOnLinux
 
             if (botChannel != null)
             {
-                Console.WriteLine("카드뽑기 봇 출근 알림");
+                Console.WriteLine("카드뽑기 봇 연결 알림");
                 //await botChannel.SendMessageAsync("카드뽑기 봇 출근했습니다.");
             }
             else
             {
                 Console.WriteLine($"{arg.Name} doesn't match the condition" +
-                    $"\n 여긴 카드뽑기 봇이 출근하지 않습니다");
+                    $"\n 여긴 카드뽑기 봇이 연결되지 않습니다.");
             }
         }
 
@@ -164,67 +163,219 @@ namespace DiscordBotOnLinux
                 }
             }
         }
-    }
 
-    public class PlayAbilityModule : ModuleBase<SocketCommandContext>
-    {
-        private Random random = new Random();
-
-        [Command("주사위")]
-        public async Task BasicDiceCommand(string command = null)
+        [Command("My전카뽑기")]
+        public async Task LegendaryCardPickDB(string command = null)
         {
-            Console.WriteLine($"command : {command}");
-            int maxNumber = 6;
-            int diceNumber;
-            int.TryParse(command, out maxNumber);
-            maxNumber = Math.Max(6, maxNumber);
-            diceNumber = random.Next(1, maxNumber + 1);
-            Console.WriteLine(maxNumber);
-            await Context.Channel.SendMessageAsync($"굴림({1} - {maxNumber}) 결과 : {diceNumber}");
-        }
-    }
-    public class LegendaryCard
-    {
-        public string name;
-        public float probability;
-
-        public LegendaryCard(string name, float probability)
-        {
-            this.name = name;
-            this.probability = probability;
-        }
-    }
-
-    public static class LegendaryCardList
-    {
-        public static List<LegendaryCard> LegendaryCards
-        {
-            get
+            if (command == null)
             {
-                if (m_legendaryCards.Count == 0)
+                int cardIndex = random.Next(0, cardList.Count);
+                SaveResultDB(Context.User.Id, cardIndex);
+                await Context.Channel.SendMessageAsync($"뽑은 카드 {cardList[cardIndex].name}");
+            }
+            else
+            {
+                int pickCount;
+                if (int.TryParse(command, out pickCount))
                 {
-                    Console.WriteLine("전설카드리스트 Init");
-                    StreamReader streamReader = new StreamReader("Legendaries.txt");
-                    string prevParsingNames = streamReader.ReadLine();
-                    var legendariesNames = prevParsingNames.Split('/');
-                    float percent = 100f / legendariesNames.Length;
-                    for (int index = 0; index < legendariesNames.Length; ++index)
+                    StringBuilder builder = new StringBuilder();
+                    builder.Append("뽑은 카드 목록\n" +
+                        "============================\n");
+                    pickCount = Math.Min(10, pickCount);
+                    if (pickCount == 0)
+                        pickCount = 1;
+                    for (int count = 0; count < pickCount; ++count)
                     {
-                        var legendCard = new LegendaryCard(legendariesNames[index], percent);
-                        m_legendaryCards.Add(legendCard);
-                        Console.WriteLine($"{legendCard.name} : {percent}%");
+                        int cardIndex = random.Next(0, cardList.Count);
+                        builder.AppendLine($"{cardList[cardIndex].name}");
+                        SaveResultDB(Context.User.Id, cardIndex);
                     }
-                }
 
-                return m_legendaryCards;
+                    await Context.Channel.SendMessageAsync(builder.ToString());
+                }
+                else
+                {
+                    await Context.Channel.SendMessageAsync("잘못된 명령어입니다.");
+                }
             }
         }
 
-        static private List<LegendaryCard> m_legendaryCards = new List<LegendaryCard>();
-    }
+        private void SaveResultDB(ulong id, int cardIndex)
+        {
+            string key = $"{id}_{cardIndex}";
+            string userData = RedisDBManager.Instance.GetData(key);
+            if (userData == "nil" || userData == null)
+            {
+                RedisDBManager.Instance.SetData(key, "1");
+                Console.WriteLine($"[RedisDB]New Data :{key}, 1");
+                return;
+            }
 
-    public static class LostArkInitializer
-    {
-        public const string PERCENT_HTML = "https://cdn-lostark.game.onstove.com/uploadfiles/static/798264b5d73248d5ae38f254e6a73afd.html";
+            int userCardCount = int.Parse(userData);
+            userCardCount++;
+            RedisDBManager.Instance.SetData(key, userCardCount.ToString());
+        }
+
+        [Command("My컬렉션")]
+        public async Task LegendaryCardCollection()
+        {
+            string totalMessage = "";
+            string pointKey = Context.User.Id.ToString();
+            totalMessage += "컬렉션 목록입니다.=============\n";
+            var cardList = LegendaryCardList.LegendaryCards;
+            for (int index = 0; index < cardList.Count; ++index)
+            {
+                string data = RedisDBManager.Instance.GetData($"{pointKey}_{index}");
+                int count = 0;
+                if (data != "nil" && data != null)
+                {
+                    count = int.Parse(data);
+                }
+
+                //1 -> 0각
+                //2 -> 1각
+                //4 -> 2각
+                //7 -> 3각
+                //11 -> 4각
+                //16 -> 5각
+                //16+ 나
+                int upgradeLevel = 0;
+                int remainCount = 0;
+                if (count >= 2 && count < 4)
+                {
+                    upgradeLevel = 1;
+                    remainCount = count - 2;
+                }
+                else if (count >= 4 && count < 7)
+                {
+                    upgradeLevel = 2;
+                    remainCount = count - 4;
+                }
+                else if (count >= 7 && count < 11)
+                {
+                    upgradeLevel = 3;
+                    remainCount = count - 7;
+                }
+                else if (count >= 11 && count < 16)
+                {
+                    upgradeLevel = 4;
+                    remainCount = count - 11;
+                }
+                else if(count >= 16)
+                {
+                    upgradeLevel = 5;
+                    remainCount = count - 16;
+                }
+
+                totalMessage += $"{cardList[index].name} : {count}/[TMI]현재 각성 상태 {upgradeLevel}각 +{remainCount}\n";
+            }
+
+            await Context.Channel.SendMessageAsync(totalMessage);
+        }
+
+        [Command("My컬렉션리셋")]
+        public async Task LegendaryCardCollectionReset()
+        {
+            string totalMessage = "";
+            string pointKey = Context.User.Id.ToString();
+            totalMessage += "컬렉션 리셋하였습니다.\n";
+            var cardList = LegendaryCardList.LegendaryCards;
+            for (int index = 0; index < cardList.Count; ++index)
+            {
+                string data = RedisDBManager.Instance.GetData($"{pointKey}_{index}");
+                if (data != "nil")
+                {
+                    RedisDBManager.Instance.SetData($"{pointKey}_{index}", "0");
+                }
+            }
+        }
+
+        public class PlayAbilityModule : ModuleBase<SocketCommandContext>
+        {
+            private Random random = new Random();
+
+            [Command("주사위")]
+            public async Task BasicDiceCommand(string command = null)
+            {
+                Console.WriteLine($"command : {command}");
+                int maxNumber = 6;
+                int diceNumber;
+                int.TryParse(command, out maxNumber);
+                maxNumber = Math.Max(6, maxNumber);
+                diceNumber = random.Next(1, maxNumber + 1);
+                Console.WriteLine(maxNumber);
+                await Context.Channel.SendMessageAsync($"굴림({1} - {maxNumber}) 결과 : {diceNumber}");
+            }
+        }
+
+        public class LegendaryCard
+        {
+            public string name;
+            public float probability;
+
+            public LegendaryCard(string name, float probability)
+            {
+                this.name = name;
+                this.probability = probability;
+            }
+        }
+
+        public static class LegendaryCardList
+        {
+            public static List<LegendaryCard> LegendaryCards
+            {
+                get
+                {
+                    if (m_legendaryCards.Count == 0)
+                    {
+                        Console.WriteLine("전설카드리스트 Init");
+                        StreamReader streamReader = new StreamReader("Legendaries.txt");
+                        string prevParsingNames = streamReader.ReadLine();
+                        var legendariesNames = prevParsingNames.Split('/');
+                        float percent = 100f / legendariesNames.Length;
+                        for (int index = 0; index < legendariesNames.Length; ++index)
+                        {
+                            var legendCard = new LegendaryCard(legendariesNames[index], percent);
+                            m_legendaryCards.Add(legendCard);
+                            Console.WriteLine($"{legendCard.name} : {percent}%");
+                        }
+                    }
+
+                    return m_legendaryCards;
+                }
+            }
+
+            static private List<LegendaryCard> m_legendaryCards = new List<LegendaryCard>();
+        }
+
+        public static class LostArkInitializer
+        {
+            public const string PERCENT_HTML = "https://cdn-lostark.game.onstove.com/uploadfiles/static/798264b5d73248d5ae38f254e6a73afd.html";
+        }
+
+        //This is Test Module For RedisDB
+        //public class LegendaryCardTestDBModule : ModuleBase<SocketCommandContext>
+        //{
+        //    [Command("DB뽑기")]
+        //    public async Task LegendaryCardPackCommand(string command = null)
+        //    {
+        //        Console.WriteLine("[DB뽑기]"+command);
+        //        Console.WriteLine($"[DB뽑기] UserName [{Context.User.Username}] [UserId {Context.User.Id}]");
+        //        //Console.WriteLine(RedisDBManager.Instance.GetData("testInt"));
+        //        //Console.WriteLine(RedisDBManager.Instance.GetData("testKey"));
+
+        //        int retryCount = 0;
+        //        while (!RedisDBManager.Instance.SetData("Test", "Things"))
+        //        {
+        //            ++retryCount;
+        //            if(retryCount == 10)
+        //            {
+        //                Console.WriteLine("Retry Failed!");
+        //                break;
+        //            }
+        //        }
+        //        //Context.User.Id
+        //    }
+        //}
     }
 }
