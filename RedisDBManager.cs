@@ -16,15 +16,12 @@ namespace DiscordBotOnLinux
         {
             get
             {
-                lock(lockObject)
+                if (_instance == null)
                 {
-                    if(_instance == null)
-                    {
-                        _instance = new RedisDBManager("localhost", 6379);
-                    }
-
-                    return _instance;
+                    _instance = new RedisDBManager("localhost", 6379);
                 }
+
+                return _instance;
             }
         }
 
@@ -78,6 +75,11 @@ namespace DiscordBotOnLinux
         public bool SetData(string key, string value)
         {
             return database.StringSet(key, value);
+        }
+
+        public void DeleteData(string key)
+        {
+            database.KeyDelete(key);
         }
     }
 }

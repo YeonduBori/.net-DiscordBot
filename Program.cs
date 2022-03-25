@@ -22,6 +22,7 @@ namespace DiscordBotOnLinux
         /// <param name="args"></param>
         static void Main(string[] args)
         {
+            RedisDBManager.Instance.ToString();
             new Program().BotMain().GetAwaiter().GetResult();   //봇의 진입점 실행
         }
 
@@ -106,6 +107,24 @@ namespace DiscordBotOnLinux
         {
             Console.WriteLine(msg.ToString());  //로그 출력
             return Task.CompletedTask;
+        }
+    }
+
+    public class PlayAbilityModule : ModuleBase<SocketCommandContext>
+    {
+        private Random random = new Random();
+
+        [Command("주사위")]
+        public async Task BasicDiceCommand(string command = null)
+        {
+            Console.WriteLine($"command : {command}");
+            int maxNumber = 6;
+            int diceNumber;
+            int.TryParse(command, out maxNumber);
+            maxNumber = Math.Max(6, maxNumber);
+            diceNumber = random.Next(1, maxNumber + 1);
+            Console.WriteLine(maxNumber);
+            await Context.Channel.SendMessageAsync($"굴림({1} - {maxNumber}) 결과 : {diceNumber}");
         }
     }
 
@@ -290,69 +309,6 @@ namespace DiscordBotOnLinux
             }
         }
 
-        public class PlayAbilityModule : ModuleBase<SocketCommandContext>
-        {
-            private Random random = new Random();
-
-            [Command("주사위")]
-            public async Task BasicDiceCommand(string command = null)
-            {
-                Console.WriteLine($"command : {command}");
-                int maxNumber = 6;
-                int diceNumber;
-                int.TryParse(command, out maxNumber);
-                maxNumber = Math.Max(6, maxNumber);
-                diceNumber = random.Next(1, maxNumber + 1);
-                Console.WriteLine(maxNumber);
-                await Context.Channel.SendMessageAsync($"굴림({1} - {maxNumber}) 결과 : {diceNumber}");
-            }
-        }
-
-        public class LegendaryCard
-        {
-            public string name;
-            public float probability;
-
-            public LegendaryCard(string name, float probability)
-            {
-                this.name = name;
-                this.probability = probability;
-            }
-        }
-
-        public static class LegendaryCardList
-        {
-            public static List<LegendaryCard> LegendaryCards
-            {
-                get
-                {
-                    if (m_legendaryCards.Count == 0)
-                    {
-                        Console.WriteLine("전설카드리스트 Init");
-                        StreamReader streamReader = new StreamReader("Legendaries.txt");
-                        string prevParsingNames = streamReader.ReadLine();
-                        var legendariesNames = prevParsingNames.Split('/');
-                        float percent = 100f / legendariesNames.Length;
-                        for (int index = 0; index < legendariesNames.Length; ++index)
-                        {
-                            var legendCard = new LegendaryCard(legendariesNames[index], percent);
-                            m_legendaryCards.Add(legendCard);
-                            Console.WriteLine($"{legendCard.name} : {percent}%");
-                        }
-                    }
-
-                    return m_legendaryCards;
-                }
-            }
-
-            static private List<LegendaryCard> m_legendaryCards = new List<LegendaryCard>();
-        }
-
-        public static class LostArkInitializer
-        {
-            public const string PERCENT_HTML = "https://cdn-lostark.game.onstove.com/uploadfiles/static/798264b5d73248d5ae38f254e6a73afd.html";
-        }
-
         //This is Test Module For RedisDB
         //public class LegendaryCardTestDBModule : ModuleBase<SocketCommandContext>
         //{
@@ -377,5 +333,149 @@ namespace DiscordBotOnLinux
         //        //Context.User.Id
         //    }
         //}
+    }
+
+    public class LegendaryCard
+    {
+        public string name;
+        public float probability;
+
+        public LegendaryCard(string name, float probability)
+        {
+            this.name = name;
+            this.probability = probability;
+        }
+    }
+
+    public static class LegendaryCardList
+    {
+        public static List<LegendaryCard> LegendaryCards
+        {
+            get
+            {
+                if (m_legendaryCards.Count == 0)
+                {
+                    Console.WriteLine("전설카드리스트 Init");
+                    StreamReader streamReader = new StreamReader("Legendaries.txt");
+                    string prevParsingNames = streamReader.ReadLine();
+                    var legendariesNames = prevParsingNames.Split('/');
+                    float percent = 100f / legendariesNames.Length;
+                    for (int index = 0; index < legendariesNames.Length; ++index)
+                    {
+                        var legendCard = new LegendaryCard(legendariesNames[index], percent);
+                        m_legendaryCards.Add(legendCard);
+                        Console.WriteLine($"{legendCard.name} : {percent}%");
+                    }
+                }
+
+                return m_legendaryCards;
+            }
+        }
+
+        static private List<LegendaryCard> m_legendaryCards = new List<LegendaryCard>();
+    }
+
+    public static class LostArkInitializer
+    {
+        public const string PERCENT_HTML = "https://cdn-lostark.game.onstove.com/uploadfiles/static/798264b5d73248d5ae38f254e6a73afd.html";
+    }
+
+    public class CounterModule : ModuleBase<SocketCommandContext>
+    {
+        Random random = new Random();
+        const int maxStartCounter = 10;
+        const int maxWaitSec = 2;
+
+
+
+        [Command("카운터룰")]
+        public async Task AnnounceCounter()
+        {
+            await Context.Channel.SendMessageAsync("!카운터치기를 입력하시면 그 뒤 1초부터 10초까지 랜덤한 시간에 봇이 번쩍!을 외칩니다. 그때 !카운터를 입력하시면 됩니다.");
+        }
+
+        [Command("카운터치기")]
+        public async Task StartCounterGame()
+        {
+            await Context.Channel.SendMessageAsync("카운터를 준비하세요! 봇이 번쩍!하면 !카운터를 입력하시면 카운터를 칩니다.");
+            //Make Session
+            RedisDBManager.Instance.SetData($"{Context.Channel.Id}_Counter", $"{Context.User.Id}/{bool.FalseString}");
+            Console.WriteLine("[Redis Counter Session] Init! at" + Context.Channel.Name + " By" + Context.User.Username);
+            int waitSec = random.Next(1, maxStartCounter + 1);
+            await Task.Delay(waitSec * 1000);
+            RedisDBManager.Instance.SetData($"{Context.Channel.Id}_Counter", $"{Context.User.Id}/{bool.TrueString}");
+            await Context.Channel.SendMessageAsync("번쩍!");
+            Task.Delay(maxWaitSec * 1000).ContinueWith(t =>
+            { 
+                RedisDBManager.Instance.DeleteData($"{Context.Channel.Id}_Counter");
+                Console.WriteLine("CounterGameEnd!");
+                Context.Channel.SendMessageAsync("카운터게임이 종료되었습니다!");
+            } );
+        }
+
+        [Command("카운터")]
+        public async Task DoCounter()
+        {
+            string counterData = RedisDBManager.Instance.GetData($"{Context.Channel.Id}_Counter");
+            ulong startUserId = 0;
+            bool isTiming = false;
+            bool OnCounterGame = false;
+            string[] datas = new string[2];
+            if (counterData != null)
+            {
+                datas = counterData.Split('/');
+                //isTiming?
+                bool.TryParse(datas[1], out isTiming);
+                OnCounterGame = true;
+            }
+            
+            Console.WriteLine("[Redis Counter Session] Counter! at" + Context.Channel.Name + " By" + Context.User.Username);
+            if (OnCounterGame && isTiming)
+            {
+                //userId
+                Console.WriteLine("UserId : " + datas[0]);
+                ulong.TryParse(datas[0], out startUserId);
+                string successMessage = $"{Context.Message.Author.Mention}님 카운터에 성공하셨습니다!";
+                if(Context.Message.Author.Id != startUserId)
+                    successMessage = $"{Context.Message.Author.Mention}님이 {MentionUtils.MentionUser(startUserId)}님의 카운터를 뺏으셨습니다!";
+
+                RedisDBManager.Instance.DeleteData($"{Context.Channel.Id}_Counter");
+                SaveGameResult(Context.User.Id);
+                Context.Channel.SendMessageAsync(successMessage);
+            }
+            else
+            {
+                Context.Channel.SendMessageAsync($"{Context.Message.Author.Mention} 카운터 실패!");
+            }
+        }
+
+        [Command("카운터전적")]
+        public async Task GetCounterRecord()
+        {
+            string data = RedisDBManager.Instance.GetData($"{Context.Message.Author.Id}_Counter");
+            if(data == null || data == "nil")
+                await Context.Channel.SendMessageAsync($"{Context.Message.Author.Mention}님은 아직 성공하신 전적이 없습니다.");
+            else
+            {
+                int result = int.Parse(data);
+                await Context.Channel.SendMessageAsync($"{Context.Message.Author.Mention}님의 카운터 성공횟수는 {result}번입니다.");
+            }
+        }
+
+        private void SaveGameResult(ulong userId)
+        {
+            string counterData = RedisDBManager.Instance.GetData($"{userId}_Counter");
+            if(counterData == null || counterData == "nil")
+            {
+                RedisDBManager.Instance.SetData($"{userId}_Counter", "1");
+                Console.WriteLine($"[{userId}]_Counter first Save");
+            }
+            else
+            {
+                int result = int.Parse(counterData) + 1;
+                RedisDBManager.Instance.SetData($"{userId}_Counter", $"{result}");
+                Console.WriteLine($"[{userId}]_Counter : ${result}");
+            }
+        }
     }
 }
