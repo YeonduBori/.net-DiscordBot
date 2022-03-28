@@ -402,15 +402,19 @@ namespace DiscordBotOnLinux
             RedisDBManager.Instance.SetData($"{Context.Channel.Id}_Counter", $"{Context.User.Id}/{bool.FalseString}");
             Console.WriteLine("[Redis Counter Session] Init! at" + Context.Channel.Name + " By" + Context.User.Username);
             int waitSec = random.Next(1, maxStartCounter + 1);
-            await Task.Delay(waitSec * 1000);
-            RedisDBManager.Instance.SetData($"{Context.Channel.Id}_Counter", $"{Context.User.Id}/{bool.TrueString}");
-            await Context.Channel.SendMessageAsync("번쩍!");
-            Task.Delay(maxWaitSec * 1000).ContinueWith(t =>
-            { 
-                RedisDBManager.Instance.DeleteData($"{Context.Channel.Id}_Counter");
-                Console.WriteLine("CounterGameEnd!");
-                Context.Channel.SendMessageAsync("카운터게임이 종료되었습니다!");
-            } );
+            Task.Delay(waitSec * 1000).ContinueWith(t =>
+            {
+                RedisDBManager.Instance.SetData($"{Context.Channel.Id}_Counter", $"{Context.User.Id}/{bool.TrueString}");
+                Context.Channel.SendMessageAsync("번쩍!");
+            }).ContinueWith(t =>
+            {
+                Task.Delay(maxWaitSec * 1000).ContinueWith(t =>
+                {
+                    RedisDBManager.Instance.DeleteData($"{Context.Channel.Id}_Counter");
+                    Console.WriteLine("CounterGameEnd!");
+                    Context.Channel.SendMessageAsync("카운터게임이 종료되었습니다!");
+                });
+            });
         }
 
         [Command("카운터")]
@@ -444,9 +448,7 @@ namespace DiscordBotOnLinux
                 Context.Channel.SendMessageAsync(successMessage);
             }
             else
-            {
                 Context.Channel.SendMessageAsync($"{Context.Message.Author.Mention} 카운터 실패!");
-            }
         }
 
         [Command("카운터전적")]
@@ -474,7 +476,7 @@ namespace DiscordBotOnLinux
             {
                 int result = int.Parse(counterData) + 1;
                 RedisDBManager.Instance.SetData($"{userId}_Counter", $"{result}");
-                Console.WriteLine($"[{userId}]_Counter : ${result}");
+                Console.WriteLine($"[{userId}]_Counter : {result}");
             }
         }
     }
