@@ -201,11 +201,51 @@ namespace DiscordBotOnLinux
                     builder.Append("뽑은 카드 목록\n" +
                         "============================\n");
                     pickCount = Math.Min(10, pickCount);
-                    if (pickCount == 0)
-                        pickCount = 1;
+                    if (pickCount <= 0) pickCount = 1;
                     for (int count = 0; count < pickCount; ++count)
                     {
                         int cardIndex = random.Next(0, cardList.Count);
+                        builder.AppendLine($"{cardList[cardIndex].name}");
+                        SaveResultDB(Context.User.Id, cardIndex);
+                    }
+
+                    await Context.Channel.SendMessageAsync(builder.ToString());
+                }
+                else
+                {
+                    await Context.Channel.SendMessageAsync("잘못된 명령어입니다.");
+                }
+            }
+        }
+
+        [Command("My둠카뽑기")]
+        public async Task DarkLegendaryCardPickDB(string command = null)
+        {
+            const int darkCardIndexGap = 5;
+            if (command == null)
+            {
+                
+                int cardIndex = random.Next(0, cardList.Count - darkCardIndexGap);//-5 끝 인덱스 5개가 바뀜
+                if (cardIndex >= cardList.Count - darkCardIndexGap)
+                    cardIndex += darkCardIndexGap;
+                SaveResultDB(Context.User.Id, cardIndex);
+                await Context.Channel.SendMessageAsync($"뽑은 카드 {cardList[cardIndex].name}");
+            }
+            else
+            {
+                int pickCount;
+                if (int.TryParse(command, out pickCount))
+                {
+                    StringBuilder builder = new StringBuilder();
+                    builder.Append("뽑은 카드 목록\n" +
+                        "============================\n");
+                    pickCount = Math.Min(10, pickCount);
+                    if (pickCount <= 0) pickCount = 1;
+                    for (int count = 0; count < pickCount; ++count)
+                    {
+                        int cardIndex = random.Next(0, cardList.Count - darkCardIndexGap);//-5 끝 인덱스 5개가 바뀜
+                        if (cardIndex >= cardList.Count - darkCardIndexGap)
+                            cardIndex += darkCardIndexGap;
                         builder.AppendLine($"{cardList[cardIndex].name}");
                         SaveResultDB(Context.User.Id, cardIndex);
                     }
@@ -359,7 +399,10 @@ namespace DiscordBotOnLinux
                     StreamReader streamReader = new StreamReader("Legendaries.txt");
                     string prevParsingNames = streamReader.ReadLine();
                     var legendariesNames = prevParsingNames.Split('/');
-                    float percent = 100f / legendariesNames.Length;
+                    const int darkCardCount = 5;
+                    //심연의 전설 카드팩의 경우 마수군단장 발탄, 광기군단장 쿠크세이튼, 욕망군단장 비아키스, 카멘,                 아브렐슈드 
+                    //전설카드팩에서            아만,            카마인,                데런아만,            국왕실리안,           가디언 루
+                    float percent = 100f / (legendariesNames.Length - darkCardCount);
                     for (int index = 0; index < legendariesNames.Length; ++index)
                     {
                         var legendCard = new LegendaryCard(legendariesNames[index], percent);
