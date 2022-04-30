@@ -10,4 +10,8 @@
     <PackageReference Include="StackExchange.Redis" Version="2.5.43" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="tests\" />
+  </ItemGroup>
+
 </Project>
