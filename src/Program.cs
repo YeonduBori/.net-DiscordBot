@@ -273,8 +273,8 @@ namespace DiscordBotOnLinux
                 return;
             }
 
-            int userCardCount = int.Parse(userData);
-            userCardCount++;
+            int userCardCounter = int.Parse(userData);
+            userCardCounter++;
             RedisDBManager.Instance.SetData(key, userCardCount.ToString());
         }
 
