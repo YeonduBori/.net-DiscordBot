@@ -558,6 +558,7 @@ namespace DiscordBotOnLinux
         욕망군단장_비아키스,
         카멘,
         아브렐슈드,
+        에버그레이스,
 
         TOTAL_COUNT,
     }
