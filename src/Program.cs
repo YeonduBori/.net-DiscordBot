@@ -453,7 +453,7 @@ namespace DiscordBotOnLinux
             RedisDBManager.Instance.SetData($"{Context.Channel.Id}_Counter", $"{Context.User.Id}/{bool.FalseString}");
             Console.WriteLine("[Redis Counter Session] Init! at" + Context.Channel.Name + " By" + Context.User.Username);
             int waitSec = random.Next(1, maxStartCounter + 1);
-            Task.Delay(waitSec * 1000).ContinueWith(t =>
+            await Task.Delay(waitSec * 1000).ContinueWith(t =>
             {
                 RedisDBManager.Instance.SetData($"{Context.Channel.Id}_Counter", $"{Context.User.Id}/{bool.TrueString}");
                 Context.Channel.SendMessageAsync("번쩍!");
@@ -496,10 +496,10 @@ namespace DiscordBotOnLinux
 
                 RedisDBManager.Instance.DeleteData($"{Context.Channel.Id}_Counter");
                 SaveGameResult(Context.User.Id);
-                Context.Channel.SendMessageAsync(successMessage);
+                await Context.Channel.SendMessageAsync(successMessage);
             }
             else
-                Context.Channel.SendMessageAsync($"{Context.Message.Author.Mention} 카운터 실패!");
+                await Context.Channel.SendMessageAsync($"{Context.Message.Author.Mention} 카운터 실패!");
         }
 
         [Command("카운터전적")]
