@@ -350,6 +350,8 @@ namespace DiscordBotOnLinux
                     RedisDBManager.Instance.SetData($"{pointKey}_{index}", "0");
                 }
             }
+
+            await Context.Channel.SendMessageAsync(totalMessage);
         }
 
         //This is Test Module For RedisDB
